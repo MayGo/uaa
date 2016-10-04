@@ -31,6 +31,7 @@ import org.cloudfoundry.identity.uaa.security.DefaultSecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.security.SecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.util.UaaPagingUtils;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
+import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelParseException;
@@ -47,7 +48,6 @@ import org.springframework.security.oauth2.common.exceptions.BadClientCredential
 import org.springframework.security.oauth2.common.exceptions.InvalidClientException;
 import org.springframework.security.oauth2.provider.ClientAlreadyExistsException;
 import org.springframework.security.oauth2.provider.ClientDetails;
-import org.springframework.security.oauth2.provider.ClientRegistrationService;
 import org.springframework.security.oauth2.provider.NoSuchClientException;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
 import org.springframework.stereotype.Controller;
@@ -87,7 +87,7 @@ public class ClientAdminEndpoints implements InitializingBean {
 
     private final Log logger = LogFactory.getLog(getClass());
 
-    private ClientRegistrationService clientRegistrationService;
+    private ClientServicesExtension clientRegistrationService;
 
     private QueryableResourceManager<ClientDetails> clientDetailsService;
 
@@ -145,7 +145,7 @@ public class ClientAdminEndpoints implements InitializingBean {
     /**
      * @param clientRegistrationService the clientRegistrationService to set
      */
-    public void setClientRegistrationService(ClientRegistrationService clientRegistrationService) {
+    public void setClientRegistrationService(ClientServicesExtension clientRegistrationService) {
         this.clientRegistrationService = clientRegistrationService;
     }
 
@@ -516,6 +516,34 @@ public class ClientAdminEndpoints implements InitializingBean {
         clientSecretChanges.incrementAndGet();
 
         return new ActionResult("ok", "secret updated");
+    }
+
+    @RequestMapping(value = "/oauth/clients/{client_id}/secret", method = RequestMethod.POST)
+    @ResponseBody
+    public ActionResult addSecret(@PathVariable String client_id, @RequestBody SecretChangeRequest change) {
+        ClientDetails clientDetails;
+        change.setClientId(client_id);
+        try {
+            clientDetails = clientDetailsService.retrieve(client_id);
+        } catch (InvalidClientException e) {
+            throw new NoSuchClientException("No such client: " + client_id);
+        }
+
+        if(!validateCurrentClientSecret(clientDetails.getClientSecret())) {
+            throw new InvalidClientDetailsException("client secret is either empty or client already has two secrets.");
+        }
+        clientRegistrationService.addClientSecret(client_id, change.getSecret());
+        clientSecretChanges.incrementAndGet();
+
+        return new ActionResult("ok", "Secret is added");
+    }
+
+    private boolean validateCurrentClientSecret(String clientSecret) {
+        if(clientSecret != null && clientSecret.split(" ").length != 1){
+            return false;
+        }
+
+        return true;
     }
 
     @ExceptionHandler(InvalidClientDetailsException.class)

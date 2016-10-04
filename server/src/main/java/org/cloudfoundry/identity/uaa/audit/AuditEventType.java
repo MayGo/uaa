@@ -56,7 +56,9 @@ public enum AuditEventType {
     EntityDeletedEvent(32),
     ServiceProviderCreatedEvent(33),
     ServiceProviderModifiedEvent(34),
-    UserAccountUnlockedEvent(35);
+    UserAccountUnlockedEvent(35),
+    SecretAddSuccess(36),
+    SecretAddFailure(37);
 
     private final int code;
 

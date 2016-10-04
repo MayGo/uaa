@@ -293,7 +293,11 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
 
         String revocableHashSignature = (String)claims.get(REVOCATION_SIGNATURE);
         if (hasText(revocableHashSignature)) {
-            String newRevocableHashSignature = UaaTokenUtils.getRevocableTokenSignature(client, user);
+            String clientSecretForHash = client.getClientSecret();
+            if(clientSecretForHash != null && clientSecretForHash.split(" ").length > 1){
+                clientSecretForHash = clientSecretForHash.split(" ")[1];
+            }
+            String newRevocableHashSignature = UaaTokenUtils.getRevocableTokenSignature(client, user, clientSecretForHash);
             if (!revocableHashSignature.equals(newRevocableHashSignature)) {
                 throw new TokenRevokedException(refreshTokenValue);
             }
@@ -625,7 +629,11 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
         }
 
         ClientDetails client = clientDetailsService.loadClientByClientId(authentication.getOAuth2Request().getClientId());
-        String revocableHashSignature = UaaTokenUtils.getRevocableTokenSignature(client, user);
+        String clientSecretForHash = client.getClientSecret();
+        if(clientSecretForHash != null && clientSecretForHash.split(" ").length > 1){
+            clientSecretForHash = clientSecretForHash.split(" ")[1];
+        }
+        String revocableHashSignature = UaaTokenUtils.getRevocableTokenSignature(client, user, clientSecretForHash);
 
         String tokenId = generateUniqueTokenId();
         String refreshTokenId = generateUniqueTokenId() + REFRESH_TOKEN_SUFFIX;
@@ -1169,9 +1177,21 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
 
         tokenValidation.checkRevocableTokenStore(tokenProvisioning).throwIfInvalid();
 
-        String currentRevocationSignature = UaaTokenUtils.getRevocableTokenSignature(client, user);
-        tokenValidation.checkRevocationSignature(currentRevocationSignature).throwIfInvalid();
+        List<String> clientSecrets = new ArrayList<>();
+        List<String> revocationSignatureList = new ArrayList<>();
+        if (client.getClientSecret() != null) {
+            clientSecrets.addAll(Arrays.asList(client.getClientSecret().split(" ")));
+        } else {
+            revocationSignatureList.add(UaaTokenUtils.getRevocableTokenSignature(client, user, null));
+        }
 
+        for (String clientSecret : clientSecrets) {
+            revocationSignatureList.add(UaaTokenUtils.getRevocableTokenSignature(client, user, clientSecret));
+        }
+
+        tokenValidation = tokenValidation.checkRevocationSignature(revocationSignatureList);
+
+        tokenValidation.throwIfInvalid();
         return tokenValidation;
     }
 

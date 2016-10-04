@@ -133,6 +133,20 @@ public class ClientAdminEventPublisher implements ApplicationEventPublisherAware
         publish(new SecretChangeEvent(getClient(clientId), getPrincipal()));
     }
 
+    public void addSecret(String clientId) {
+        publish(new AddSecretEvent(getClient(clientId), getPrincipal()));
+    }
+
+    public void addSecretFailure(String clientId, Exception e) {
+        ClientDetails client = getClient(clientId);
+        if (client != null) {
+            publish(new AddSecretFailureEvent(e.getMessage(), client, getPrincipal()));
+        }
+        else {
+            publish(new AddSecretFailureEvent(e.getMessage(), getPrincipal()));
+        }
+    }
+
     private ClientDetails getClient(String clientId) {
         try {
             return clientDetailsService.loadClientByClientId(clientId);

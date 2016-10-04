@@ -118,7 +118,7 @@ public class TokenValidationTest {
                 .checkUser(userDb)
                 .checkScopesInclude("acme.dev")
                 .checkScopesWithin("acme.dev", "another.scope")
-                .checkRevocationSignature("fa1c787d")
+                .checkRevocationSignature(Collections.singletonList("fa1c787d"))
                 .checkAudience("acme", "app")
                 .checkRevocableTokenStore(revocableTokenProvisioning)
                 ;
@@ -236,7 +236,7 @@ public class TokenValidationTest {
     @Test
     public void clientRevocationHashChanged() {
         TokenValidation validation = validate(getToken())
-                .checkRevocationSignature("New-Hash");
+                .checkRevocationSignature(Collections.singletonList("New-Hash"));
         assertFalse(validation.isValid());
         assertThat(validation.getValidationErrors(), hasItem(instanceOf(InvalidTokenException.class)));
     }
